@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Product {
+  id              String                   @id @default(uuid())
+  name            String
+  price           Decimal                  @db.Decimal(10, 2)
+  characteristics ProductCharacteristics[] // Возможные характеристики товаров
+  documents       Document[]
+  variants        ProductVariant[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("products")
+}
+
+// характеристики каждого товара
+model ProductCharacteristics {
+  id String @id @default(uuid())
+
+  product          Product        @relation(fields: [productId], references: [id])
+  productId        String         @map("product_id")
+  characteristic   Characteristic @relation(fields: [characteristicId], references: [id])
+  characteristicId String         @map("characteristic_id")
+
+  @@map("product_characteristics")
+}
+
+model Characteristic {
+  id       String                   @id @default(uuid())
+  name     String
+  values   CharacteristicValue[] // Возможные значения характеристики
+  products ProductCharacteristics[] // Товары, к которым применима характеристика
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("characteristics")
+}
+
+model CharacteristicValue {
+  id               String                              @id @default(uuid())
+  value            String // Например, "Красный", "42"
+  characteristic   Characteristic                      @relation(fields: [characteristicId], references: [id], onDelete: Restrict)
+  characteristicId String                              @map("characteristic_id")
+  variants         ProductVariantCharacteristicValue[] // связь с конкретным товаром
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("characteristic_values")
+}
+
+// экземпляры каждого товара
+model ProductVariant {
+  id                   String                              @id @default(uuid())
+  product              Product                             @relation(fields: [productId], references: [id])
+  productId            String                              @map("product_id")
+  characteristicValues ProductVariantCharacteristicValue[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("product_variants")
+}
+
+model ProductVariantCharacteristicValue {
+  id                    String              @id @default(uuid())
+  productVariant        ProductVariant      @relation(fields: [productVariantId], references: [id])
+  productVariantId      String              @map("product_variant_id")
+  characteristicValue   CharacteristicValue @relation(fields: [characteristicValueId], references: [id])
+  characteristicValueId String              @map("characteristic_value_id")
+
+  @@map("product_variant_characteristic_values")
+}
+
+model Document {
+  id        String  @id @default(uuid())
+  product   Product @relation(fields: [productId], references: [id])
+  productId String  @map("product_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("documents")
+}
