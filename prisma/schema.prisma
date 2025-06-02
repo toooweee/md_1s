@@ -16,7 +16,7 @@ datasource db {
 
 model User {
   id        String   @id @default(uuid())
-  email     String
+  email     String   @unique
   password  String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -24,10 +24,23 @@ model User {
   @@map("users")
 }
 
+/**
+ * Это основная сущность, представляющая тип товара или "справочник товаров".
+ * Например, "Футболка", "Смартфон XYZ".
+ *
+ * characteristics ProductCharacteristics[]: Связь "один ко многим" с моделью ProductCharacteristics.
+ * Указывает, какие типы характеристик в принципе применимы к этому типу товара.
+ * Например, для "Футболки" это могут быть "Цвет" и "Размер"
+ *
+ * documents Document[]: Связь "один ко многим" с моделью Document.
+ * Означает, что с одним типом товара может быть связано несколько документов (например, инструкции, сертификаты)
+ *
+ * variants ProductVariant[]: Связь "один ко многим" с моделью ProductVariant.
+ * Указывает, что у одного типа товара может быть много конкретных вариантов
+ */
 model Product {
   id              String                   @id @default(uuid())
   name            String
-  price           Decimal                  @db.Decimal(10, 2)
   characteristics ProductCharacteristics[] // Возможные характеристики товаров
   documents       Document[]
   variants        ProductVariant[]
@@ -38,7 +51,17 @@ model Product {
   @@map("products")
 }
 
-// характеристики каждого товара
+/**
+ * Промежуточная таблица
+ *
+ * Это связующая таблица (join table) для реализации отношения "многие ко многим" между Product и Characteristic
+ *
+ * product Product: Связь "многие к одному" с Product
+ * characteristic Characteristic: Связь "многие к одному" с Characteristic
+ *
+ * Зачем это нужно? Например, характеристика "Размер" может применяться к "Футболкам" и "Джинсам" (разным Product). А "Футболка" может иметь характеристики "Размер" и "Цвет".
+ * Эта таблица как раз и хранит эти связи: (Футболка, Размер), (Футболка, Цвет), (Джинсы, Размер)
+ */
 model ProductCharacteristics {
   id String @id @default(uuid())
 
@@ -50,9 +73,14 @@ model ProductCharacteristics {
   @@map("product_characteristics")
 }
 
+/**
+ * values CharacteristicValue[]: Связь "один ко многим" с CharacteristicValue. Означает, что у одной характеристики (например, "Цвет") может быть много возможных значений ("Красный", "Синий", "Зеленый").
+ *
+ * products ProductCharacteristics[]: Связь "один ко многим" с ProductCharacteristics. Показывает, к каким типам продуктов эта характеристика может быть применена (через промежуточную таблицу).
+ */
 model Characteristic {
   id       String                   @id @default(uuid())
-  name     String
+  name     String                   @unique
   values   CharacteristicValue[] // Возможные значения характеристики
   products ProductCharacteristics[] // Товары, к которым применима характеристика
 
@@ -62,6 +90,9 @@ model Characteristic {
   @@map("characteristics")
 }
 
+/**
+ * variants ProductVariantCharacteristicValue[]: Связь "один ко многим" с ProductVariantCharacteristicValue. Показывает, какие конкретные варианты товаров обладают этим значением характеристики
+ */
 model CharacteristicValue {
   id               String                              @id @default(uuid())
   value            String // Например, "Красный", "42"
@@ -75,9 +106,16 @@ model CharacteristicValue {
   @@map("characteristic_values")
 }
 
-// экземпляры каждого товара
+/**
+ * Это конкретный экземпляр или вариация товара. Например, если Product - это "Футболка 'Классика'", то ProductVariant может быть "Футболка 'Классика', Цвет: Красный, Размер: M"
+ *
+ * product Product: Связь "многие к одному" с Product. Каждый вариант принадлежит одному типу товара
+ *
+ * characteristicValues ProductVariantCharacteristicValue[]: Связь "один ко многим" с ProductVariantCharacteristicValue. Определяет, какими конкретными значениями характеристик обладает данный вариант товара
+ */
 model ProductVariant {
   id                   String                              @id @default(uuid())
+  price                Decimal                             @db.Decimal(10, 2)
   product              Product                             @relation(fields: [productId], references: [id])
   productId            String                              @map("product_id")
   characteristicValues ProductVariantCharacteristicValue[]
@@ -88,6 +126,9 @@ model ProductVariant {
   @@map("product_variants")
 }
 
+/**
+ * еще одна связующая таблица, реализующая отношение "многие ко многим" между ProductVariant и CharacteristicValue. Она связывает конкретный вариант товара с набором его конкретных значений характеристик
+ */
 model ProductVariantCharacteristicValue {
   id                    String              @id @default(uuid())
   productVariant        ProductVariant      @relation(fields: [productVariantId], references: [id])
